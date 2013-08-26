@@ -1,0 +1,18 @@
+# -*- mode: python; coding: utf-8 -*-
+
+def options(opt):
+    pass
+
+def configure(conf):
+    conf.env.CXXFLAGS += ['-I../common']
+
+def build(bld):
+    name = 'jubatus-bench-classifier'
+    bld.program(
+        source = [ name + '.cpp',
+                   '../common/main.cpp',
+                   '../common/query_runner.cpp',
+                   '../common/time_span.cpp' ],
+        target = name,
+        use = ['JUBATUS-CLIENT', 'PFICOMMON', 'RT'],
+    )
