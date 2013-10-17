@@ -26,11 +26,13 @@ public:
     time_type diff = end_ - start_;
     return diff.sec * 1000 + double(diff.usec)/1000.0;
   }
-  
-  datetime_type start_datetime() { return datetime_type(start_); }
-  datetime_type stop_datetiem() { return datetime_type(end_); }
-  std::string start_datetime_string() { return format_datetime(start_); }
-  std::string stop_datetime_string() { return format_datetime(end_); }
+
+  time_type start_clocktime() const { return start_; }
+  time_type end_clocktime() const { return end_; }
+  datetime_type start_datetime() const { return datetime_type(start_); }
+  datetime_type stop_datetiem() const { return datetime_type(end_); }
+  std::string start_datetime_string() const { return format_datetime(start_); }
+  std::string stop_datetime_string() const { return format_datetime(end_); }
 
 private:
   static time_type get_time() {

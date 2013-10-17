@@ -34,6 +34,7 @@ Main::Main():
   dump_path(OPT_DEFAULT_DUMP_PATH),
   tag(OPT_DEFAULT_TAG),
   dump_cmdline(OPT_DEFAULT_DUMP_CMDLINE),
+  time_unit(OPT_DEFAULT_TIME_UNIT),
   verbose(1) {
 }
 
@@ -63,6 +64,7 @@ void Main::show_usage(std::ostream& out) {
       << "  --out FILE            alias of --dump-path" << std::endl
       << "  --tag MESSAGE         dump additional tag" << std::endl
       << "  --dump-cmdline        dump command-line" << std::endl
+      << "  --time-unit #SEC      statistics time unit(sec)" << std::endl
       << "  --slient              silent mode" << std::endl
       << "  --verbose             increase verbose level" << std::endl
       << "  --version             show version" << std::endl
@@ -109,6 +111,7 @@ enum {
   OPT_DUMP_PATH,
   OPT_TAG,
   OPT_DUMP_CMDLINE,
+  OPT_TIME_UNIT,
   OPT_SILENT,
   OPT_VERBOSE,
   OPT_VERSION,
@@ -133,6 +136,7 @@ void Main::add_common_options() {
   add_option( "out",            required_argument, NULL, OPT_DUMP_PATH);
   add_option( "tag",            required_argument, NULL, OPT_TAG);
   add_option( "dump-cmdline",   no_argument,       NULL, OPT_DUMP_CMDLINE);
+  add_option( "time-unit",      required_argument, NULL, OPT_TIME_UNIT);
   add_option( "silent",         no_argument,       NULL, OPT_SILENT);
   add_option( "verbose",        no_argument,       NULL, OPT_VERBOSE);
   add_option( "version",        no_argument,       NULL, OPT_VERSION );
@@ -257,6 +261,9 @@ bool Main::parse_option(int argc, char * const argv[]) {
       break;
     case OPT_DUMP_CMDLINE:
       dump_cmdline = true;
+      break;
+    case OPT_TIME_UNIT:
+      parse_positive_or_zero_number("time-unit", optarg, time_unit);
       break;
     case OPT_SILENT:
       verbose = 0;
@@ -408,6 +415,63 @@ json Main::get_result_as_json() {
   return toplevel;
 }
 
+
+json Main::get_timespan_statistics_as_json() {
+  using pfi::system::time::clock_time;
+
+  json ret(new json_object());
+  json thread_results( new json_array() );
+  clock_time basetime(0, 0);
+
+  for(size_t i = 0; i < runners.size(); ++i) {
+    const std::vector<QueryResult>& results = runners[i]->get_results();
+
+    json result(new json_object());
+    result["id"] = new json_integer(runners[i]->id);
+
+    json means(new json_object());
+    json valiances(new json_object());
+    json nums(new json_object());
+    std::vector<double> latencies;
+
+    for(size_t j = 0; j < results.size(); ++j) {
+      if ( results[j].query_time.start_clocktime() - basetime > time_unit) {
+        if ( !latencies.empty() ) {
+          SimpleStatistics<double> unit_latencies =
+              SimpleStatistics<double>::get_stat(latencies);
+          std::stringstream ss;
+          ss << basetime.sec;
+          nums[ss.str()] = new json_integer(latencies.size());
+          means[ss.str()] = new json_float(unit_latencies.mean);
+          valiances[ss.str()] = new json_float(unit_latencies.variance);
+        }
+        basetime.sec = results[j].query_time.start_clocktime().sec;
+        latencies.clear();
+      }
+      if ( results[j].err_code == 0 ) {
+        latencies.push_back( results[j].query_time.elapsed_time_msec() );
+      }
+    }
+
+    // last unit
+    SimpleStatistics<double> unit_latencies =
+        SimpleStatistics<double>::get_stat(latencies);
+    std::stringstream ss;
+    ss << basetime.sec;
+    nums[ss.str()] = new json_integer(latencies.size());
+    means[ss.str()] = new json_float(unit_latencies.mean);
+    valiances[ss.str()] = new json_float(unit_latencies.variance);
+
+    result["num"] = nums;
+    result["mean"] = means;
+    result["valiance"] = valiances;
+
+    thread_results.add(result);
+  }
+  ret["thread_results_units"] = thread_results;
+  return ret;
+}
+
 void Main::dump_result() {
   if ( verbose ) {
     std::clog << "# dumping result: " << dump_path << std::endl;
@@ -420,6 +484,8 @@ void Main::dump_result() {
   result.pretty(out, /*escape=*/ true);
   out.close();
   
+  if (time_unit) get_timespan_statistics_as_json().pretty(std::cout, false);
+
   if ( verbose ) {
     std::clog << "# dump result: end" << std::endl;
   }

@@ -18,5 +18,6 @@
 #define OPT_DEFAULT_DUMP_PATH                   "result.json"
 #define OPT_DEFAULT_TAG                         ""
 #define OPT_DEFAULT_DUMP_CMDLINE                false
+#define OPT_DEFAULT_TIME_UNIT                   0
 
 #endif // JUBATUS_X_BENCH_DEFAULT_

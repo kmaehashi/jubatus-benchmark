@@ -48,6 +48,7 @@ public:
   virtual pfi::text::json::json get_summary_as_json();
   virtual pfi::text::json::json get_summary_statistics_as_json(pfi::text::json::json result);
   virtual pfi::text::json::json get_result_as_json();
+  virtual pfi::text::json::json get_timespan_statistics_as_json();
 
   virtual void show_usage(std::ostream& out);
   virtual void show_specific_options_usage(std::ostream& out); 
@@ -88,6 +89,7 @@ public:
   std::string dump_path;
   std::string tag;
   bool dump_cmdline;
+  unsigned int time_unit;
 
   // misc.
   int verbose;
