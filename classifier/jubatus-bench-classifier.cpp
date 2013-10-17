@@ -8,6 +8,8 @@
 #include "main.h"
 #include "query_runner.h"
 
+using pfi::system::time::get_clock_time;
+
 namespace jubatus {
 namespace bench {
 
@@ -104,10 +106,30 @@ void ClassifierQueryRunner::execute_train() {
 
   jubatus::classifier::client::classifier client( bench_->host, bench_->port, bench_->timeout_sec );
 
+  size_t i = 0;
   size_t idx = 0;
-  for(size_t i = 0; i < query_num; ++i) {
+  bool looped = false;
+  while ( true ) {
+
+    // stop by run-time
+    if ( bench_->run_time > 0 &&
+          get_clock_time() - bench_->exec_time.start_clocktime() > bench_->run_time ) {
+      if ( bench_->verbose ) { 
+        std::clog << "# perform queries: stoped by run_time: "
+            << bench_->run_time << " sec" << std::endl;
+        }
+      break;
+    }
+
+    // stop by query_num
+    if ( query_num > 0 && i == query_num ) break;
+
     std::vector<dataset_type::label_datum_type> train_data;
     for(size_t j = 0; j < bench_->bulk_size; ++j ) {
+      if ( bench_->dataset_.size() == idx + bench_->bulk_size ) {
+        idx = 0;
+        looped = true;
+      }
       const dataset_type::label_datum_type &ld = bench_->dataset_.get(idx);
       train_data.push_back(ld);
       ++idx;
@@ -121,23 +143,54 @@ void ClassifierQueryRunner::execute_train() {
     }
     END_SAFE_RPC_CALL( client, bench_->verbose, err_code );
     t.stop();
-    
-    results[i].data_index = i;
-    results[i].err_code = err_code;
-    results[i].query_time = t;
+
+    QueryResult result = QueryResult(i);
+    result.err_code = err_code;
+    result.query_time = t;
+    results.push_back(result);
+
+    ++i;
+
+    if ( bench_->verbose && i % 1000 == 0 ) {
+      std::clog << "# perform queries: " << i << std::endl;
+    }
+
+    // set no run_time or query_num
+    if ( bench_->run_time == 0 && query_num == 0 && looped ) break;
   }
 }
 
 void ClassifierQueryRunner::execute_classify() {
+  using jubatus::classifier::estimate_result;
   typedef ClassifierBench::datum_type datum_type;
   typedef DatasetSVM<ClassifierBench::datum_type> dataset_type;
 
   jubatus::classifier::client::classifier client( bench_->host, bench_->port, bench_->timeout_sec );
 
+  size_t i = 0;
   size_t idx = 0;
-  for(size_t i = 0; i < query_num; ++i) {
+  bool looped = false;
+  while ( true ) {
+
+    // stop by run-time
+    if ( bench_->run_time > 0 &&
+          get_clock_time() - bench_->exec_time.start_clocktime() > bench_->run_time ) {
+      if ( bench_->verbose ) {
+        std::clog << "# perform queries: stoped by run_time: "
+            << bench_->run_time << " sec" << std::endl;
+        }
+      break;
+    }
+
+    // stop by query_num
+    if ( query_num > 0 && i == query_num ) break;
+
     std::vector<dataset_type::datum_type> classify_data;
     for(size_t j = 0; j < bench_->bulk_size; ++j ) {
+      if ( bench_->dataset_.size() == idx + bench_->bulk_size ) {
+        idx = 0;
+        looped = true;
+      }
       const dataset_type::label_datum_type &ld = bench_->dataset_.get(idx);
       classify_data.push_back(ld.second);
       ++idx;
@@ -147,14 +200,28 @@ void ClassifierQueryRunner::execute_classify() {
     TimeSpan t;
     t.start();
     BEGIN_SAFE_RPC_CALL() {
-      client.classify( bench_->cluster_name, classify_data);
+      std::vector<std::vector<estimate_result> > result
+          = client.classify( bench_->cluster_name, classify_data);
+      for (size_t i = 0; i < result.size(); ++i) {
+        if ( result[i].empty() ) err_code = QueryResult::ERR_WRONG_RESULT;
+      }
     }
     END_SAFE_RPC_CALL(client, bench_->verbose, err_code);
     t.stop();
-    
-    results[i].data_index = i;
-    results[i].err_code = err_code;
-    results[i].query_time = t;
+
+    QueryResult result = QueryResult(i);
+    result.err_code = err_code;
+    result.query_time = t;
+    results.push_back(result);
+
+    ++i;
+
+    if ( bench_->verbose && i % 1000 == 0 ) {
+      std::clog << "# perform queries: " << i << std::endl;
+    }
+
+    // set no run_time or query_num
+    if ( bench_->run_time == 0 && query_num == 0 && looped ) break;
   }
 }
 

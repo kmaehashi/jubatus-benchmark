@@ -91,6 +91,9 @@ public:
   bool dump_cmdline;
   unsigned int time_unit;
 
+  // run time
+  unsigned int run_time;
+
   // misc.
   int verbose;
 

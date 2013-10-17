@@ -35,6 +35,7 @@ Main::Main():
   tag(OPT_DEFAULT_TAG),
   dump_cmdline(OPT_DEFAULT_DUMP_CMDLINE),
   time_unit(OPT_DEFAULT_TIME_UNIT),
+  run_time(OPT_DEFAULT_RUN_TIME),
   verbose(1) {
 }
 
@@ -57,6 +58,7 @@ void Main::show_usage(std::ostream& out) {
       << "  --bulk-size #NUM      bulk size" << std::endl
       << "  --thread-num #NUM     number of client threads" << std::endl
       << "  --query-num #NUM      number of query per thread" << std::endl
+      << "                        if set 0, size of FILE specified by --in" << std::endl
       << "  --dump-raw-data       dump raw data" << std::endl
       << "  --no-dump-summary     do not dump summary" << std::endl
       << "  --trim-percent N      trim N% result" << std::endl
@@ -65,6 +67,8 @@ void Main::show_usage(std::ostream& out) {
       << "  --tag MESSAGE         dump additional tag" << std::endl
       << "  --dump-cmdline        dump command-line" << std::endl
       << "  --time-unit #SEC      statistics time unit(sec)" << std::endl
+      << "  --run-time #SEC       run time(sec)" << std::endl
+      << "                        if set 0, enable only --query-num" << std::endl
       << "  --slient              silent mode" << std::endl
       << "  --verbose             increase verbose level" << std::endl
       << "  --version             show version" << std::endl
@@ -112,6 +116,7 @@ enum {
   OPT_TAG,
   OPT_DUMP_CMDLINE,
   OPT_TIME_UNIT,
+  OPT_RUN_TIME,
   OPT_SILENT,
   OPT_VERBOSE,
   OPT_VERSION,
@@ -137,6 +142,7 @@ void Main::add_common_options() {
   add_option( "tag",            required_argument, NULL, OPT_TAG);
   add_option( "dump-cmdline",   no_argument,       NULL, OPT_DUMP_CMDLINE);
   add_option( "time-unit",      required_argument, NULL, OPT_TIME_UNIT);
+  add_option( "run-time",       required_argument, NULL, OPT_RUN_TIME);
   add_option( "silent",         no_argument,       NULL, OPT_SILENT);
   add_option( "verbose",        no_argument,       NULL, OPT_VERBOSE);
   add_option( "version",        no_argument,       NULL, OPT_VERSION );
@@ -242,7 +248,7 @@ bool Main::parse_option(int argc, char * const argv[]) {
       parse_positive_number("thread-num", optarg, thread_num);
       break;
     case OPT_QUERY_NUM_PER_THREAD:
-      parse_positive_number("query-num", optarg, query_num_per_thread);
+      parse_positive_or_zero_number("query-num", optarg, query_num_per_thread);
       break;
     case OPT_DUMP_RAW_DATA:
       dump_info |= DUMP_INFO_RAW_DATA;
@@ -264,6 +270,9 @@ bool Main::parse_option(int argc, char * const argv[]) {
       break;
     case OPT_TIME_UNIT:
       parse_positive_or_zero_number("time-unit", optarg, time_unit);
+      break;
+    case OPT_RUN_TIME:
+      parse_positive_or_zero_number("run-time", optarg, run_time);
       break;
     case OPT_SILENT:
       verbose = 0;
@@ -304,9 +313,11 @@ Main::query_runner_ptr Main::create_query_runner(size_t id, size_t query_num) {
 void Main::perform_queries() {
   if ( verbose ) {
     std::clog << "# perform queries: start with " 
-              << thread_num << " threads, "
-              << query_num_per_thread << " queries/thread"
-              << std::endl;
+              << thread_num << " threads";
+    if ( query_num_per_thread > 0 ) {
+      std::clog << ", " << query_num_per_thread << " queries/thread";
+    }
+    std::clog << std::endl;
   }
 
   runners.clear();
@@ -376,19 +387,20 @@ json Main::get_summary_as_json() {
   summary["dataset_size"] = new json_integer(dataset_size());
   summary["dataset_description"] = new json_string(dataset_description());
   summary["thread_num"] = new json_integer(thread_num);
-  summary["query_num_per_thread"] = new json_integer(query_num_per_thread);
-  summary["total_query_num"] = new json_integer(query_num_per_thread * thread_num);
   summary["trim_percent"] = new json_integer(trim_percent);
   summary["query_mode"] = new json_string(query_mode);
   summary["bulk_size"] = new json_integer(bulk_size);
 
+  size_t total_num = 0;
   size_t total_success_num = 0;
   for(size_t i = 0; i < runners.size(); ++i ) {
+    total_num += runners[i]->get_results().size();
     total_success_num += runners[i]->get_success_num();
   }
-  size_t total_error_num = query_num_per_thread * thread_num - total_success_num;
+
+  summary["total_query_num"] = new json_integer(total_num);
   summary["total_success_num"] = new json_integer(total_success_num);
-  summary["total_error_num"] = new json_integer(total_error_num);
+  summary["total_error_num"] = new json_integer(total_num - total_success_num);
 
   summary["start-datetime"] = new json_string(exec_time.start_datetime_string());
   summary["stop-datetime"] = new json_string(exec_time.stop_datetime_string());
@@ -412,6 +424,8 @@ json Main::get_result_as_json() {
     toplevel["thread_results"] = thread_results;
   }
 
+  if (time_unit) toplevel["timespan_results"] = get_timespan_statistics_as_json();
+
   return toplevel;
 }
 
@@ -419,7 +433,7 @@ json Main::get_result_as_json() {
 json Main::get_timespan_statistics_as_json() {
   using pfi::system::time::clock_time;
 
-  json ret(new json_object());
+  json results(new json_object());
   json thread_results( new json_array() );
   clock_time basetime(0, 0);
 
@@ -437,13 +451,14 @@ json Main::get_timespan_statistics_as_json() {
     for(size_t j = 0; j < results.size(); ++j) {
       if ( results[j].query_time.start_clocktime() - basetime > time_unit) {
         if ( !latencies.empty() ) {
-          SimpleStatistics<double> unit_latencies =
+          SimpleStatistics<double> unit_stats =
               SimpleStatistics<double>::get_stat(latencies);
+
           std::stringstream ss;
           ss << basetime.sec;
           nums[ss.str()] = new json_integer(latencies.size());
-          means[ss.str()] = new json_float(unit_latencies.mean);
-          valiances[ss.str()] = new json_float(unit_latencies.variance);
+          means[ss.str()] = new json_float(unit_stats.mean);
+          valiances[ss.str()] = new json_float(unit_stats.variance);
         }
         basetime.sec = results[j].query_time.start_clocktime().sec;
         latencies.clear();
@@ -453,14 +468,14 @@ json Main::get_timespan_statistics_as_json() {
       }
     }
 
-    // last unit
-    SimpleStatistics<double> unit_latencies =
+    SimpleStatistics<double> last_unit_stats =
         SimpleStatistics<double>::get_stat(latencies);
+
     std::stringstream ss;
     ss << basetime.sec;
     nums[ss.str()] = new json_integer(latencies.size());
-    means[ss.str()] = new json_float(unit_latencies.mean);
-    valiances[ss.str()] = new json_float(unit_latencies.variance);
+    means[ss.str()] = new json_float(last_unit_stats.mean);
+    valiances[ss.str()] = new json_float(last_unit_stats.variance);
 
     result["num"] = nums;
     result["mean"] = means;
@@ -468,8 +483,8 @@ json Main::get_timespan_statistics_as_json() {
 
     thread_results.add(result);
   }
-  ret["thread_results_units"] = thread_results;
-  return ret;
+  results["thread_results"] = thread_results;
+  return results;
 }
 
 void Main::dump_result() {
@@ -483,8 +498,6 @@ void Main::dump_result() {
   json result = get_result_as_json();
   result.pretty(out, /*escape=*/ true);
   out.close();
-  
-  if (time_unit) get_timespan_statistics_as_json().pretty(std::cout, false);
 
   if ( verbose ) {
     std::clog << "# dump result: end" << std::endl;

@@ -13,7 +13,7 @@ namespace bench {
 QueryRunner::QueryRunner(size_t _id, size_t _query_num):
   id(_id),
   query_num(_query_num),
-  results(_query_num),
+  results(),
   thread_(NULL) {
 }
 
@@ -57,7 +57,7 @@ const std::vector<QueryResult>& QueryRunner::get_results() {
 
 size_t QueryRunner::get_success_num() {
   size_t success_num = 0;
-  for(size_t i = 0; i < query_num; ++i ) {
+  for(size_t i = 0; i < results.size(); ++i ) {
     if ( results[i].err_code == 0  ) ++success_num;
   }
   return success_num;
@@ -66,18 +66,18 @@ size_t QueryRunner::get_success_num() {
 json QueryRunner::get_result_as_json() {
   json result(new json_object());
   result["id"] = new json_integer(id);
-  result["query_num"] = new json_integer(query_num);
+  result["query_num"] = new json_integer(results.size());
   
   size_t success_count = 0;
   json records(new json_array());
-  for(size_t i = 0; i < query_num; ++i ) {
+  for(size_t i = 0; i < results.size(); ++i ) {
     if ( results[i].err_code == 0  ) {
       records.add( new json_float( results[i].query_time.elapsed_time_msec()) );
       ++success_count;
     }
   }
   result["success_num"] = new json_integer(success_count);
-  result["error_num"] = new json_integer(query_num-success_count);
+  result["error_num"] = new json_integer(results.size() - success_count);
   result["records"] = records;
 
   return result;
