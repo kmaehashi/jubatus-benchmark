@@ -11,6 +11,7 @@
 #include <sstream>
 #include <vector>
 
+#include <pficommon/lang/cast.h>
 #include <pficommon/text/json.h>
 
 #include "time_span.h"

@@ -11,6 +11,7 @@
 #include "exception.h"
 #include "main.h"
 #include "query_runner.h"
+#include "query_result.h"
 #include "statistics.h"
 
 using namespace pfi::text::json;
@@ -433,58 +434,84 @@ json Main::get_result_as_json() {
 json Main::get_timespan_statistics_as_json() {
   using pfi::system::time::clock_time;
 
-  json results(new json_object());
-  json thread_results( new json_array() );
-  clock_time basetime(0, 0);
+  json timespan_statistics(new json_object());
 
   for(size_t i = 0; i < runners.size(); ++i) {
     const std::vector<QueryResult>& results = runners[i]->get_results();
 
-    json result(new json_object());
-    result["id"] = new json_integer(runners[i]->id);
-
-    json means(new json_object());
-    json valiances(new json_object());
-    json nums(new json_object());
+    json thread_result(new json_object());
+    clock_time basetime(0, 0);
+    size_t success_num = 0;
+    size_t wrong_num = 0;
+    size_t error_num = 0;
+    size_t exception_num = 0;
     std::vector<double> latencies;
 
     for(size_t j = 0; j < results.size(); ++j) {
       if ( results[j].query_time.start_clocktime() - basetime > time_unit) {
         if ( !latencies.empty() ) {
-          SimpleStatistics<double> unit_stats =
+          json stat(new json_object());
+
+          SimpleStatistics<double> unit_stat =
               SimpleStatistics<double>::get_stat(latencies);
 
-          std::stringstream ss;
-          ss << basetime.sec;
-          nums[ss.str()] = new json_integer(latencies.size());
-          means[ss.str()] = new json_float(unit_stats.mean);
-          valiances[ss.str()] = new json_float(unit_stats.variance);
+          stat["mean"] = new json_float(unit_stat.mean);
+          stat["variance"] = new json_float(unit_stat.variance);
+          stat["num"] = new json_float(latencies.size());
+
+          stat["success_num"] = new json_integer(success_num);
+          stat["wrong_num"] = new json_integer(wrong_num);
+          stat["error_num"] = new json_integer(error_num);
+          stat["exception_num"] = new json_integer(exception_num);
+
+          thread_result[pfi::lang::lexical_cast<std::string>(basetime.sec)] = stat;
         }
         basetime.sec = results[j].query_time.start_clocktime().sec;
+        success_num = 0;
+        wrong_num = 0;
+        error_num = 0;
+        exception_num = 0;
         latencies.clear();
       }
-      if ( results[j].err_code == 0 ) {
-        latencies.push_back( results[j].query_time.elapsed_time_msec() );
+
+      // ratency and "num" includes success and wrong result
+      switch (results[j].err_code) {
+        case QueryResult::ERR_SUCCESS:
+          ++success_num;
+          latencies.push_back( results[j].query_time.elapsed_time_msec() );
+          break;
+        case QueryResult::ERR_WRONG_RESULT:
+          ++wrong_num;
+          latencies.push_back( results[j].query_time.elapsed_time_msec() );
+          break;
+        case QueryResult::ERR_RPC_ERROR:
+          ++error_num;
+          break;
+        case QueryResult::ERR_EXCEPTION:
+          ++exception_num;
+          break;
       }
     }
 
-    SimpleStatistics<double> last_unit_stats =
+    // last unit
+    json stat(new json_object());
+
+    SimpleStatistics<double> unit_stat =
         SimpleStatistics<double>::get_stat(latencies);
 
-    std::stringstream ss;
-    ss << basetime.sec;
-    nums[ss.str()] = new json_integer(latencies.size());
-    means[ss.str()] = new json_float(last_unit_stats.mean);
-    valiances[ss.str()] = new json_float(last_unit_stats.variance);
+    stat["mean"] = new json_float(unit_stat.mean);
+    stat["variance"] = new json_float(unit_stat.variance);
+    stat["num"] = new json_float(latencies.size());
 
-    result["num"] = nums;
-    result["mean"] = means;
-    result["valiance"] = valiances;
+    stat["success_num"] = new json_integer(success_num);
+    stat["wrong_num"] = new json_integer(wrong_num);
+    stat["error_num"] = new json_integer(error_num);
+    stat["exception_num"] = new json_integer(exception_num);
 
-    thread_results.add(result);
+    thread_result[pfi::lang::lexical_cast<std::string>(basetime.sec)] = stat;
+    timespan_statistics[pfi::lang::lexical_cast<std::string>(runners[i]->id)] = thread_result;
   }
-  results["thread_results"] = thread_results;
-  return results;
+  return timespan_statistics;
 }
 
 void Main::dump_result() {
