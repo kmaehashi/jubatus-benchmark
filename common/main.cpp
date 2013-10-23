@@ -382,10 +382,6 @@ json Main::get_summary_as_json() {
   if ( dump_cmdline )
     summary["command_line"] = new json_string(cmdline_);
   summary["dataset"] = new json_string(dataset_path);
-  if ( dataset_limit == (size_t)-1 )
-    summary["dataset_limit"] = new json_integer(-1);
-  else
-    summary["dataset_limit"] = new json_integer(dataset_limit);
   summary["dataset_size"] = new json_integer(dataset_size());
   summary["dataset_description"] = new json_string(dataset_description());
   summary["thread_num"] = new json_integer(thread_num);
