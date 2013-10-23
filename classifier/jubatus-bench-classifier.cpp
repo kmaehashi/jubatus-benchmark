@@ -126,7 +126,7 @@ void ClassifierQueryRunner::execute_train() {
 
     std::vector<dataset_type::label_datum_type> train_data;
     for(size_t j = 0; j < bench_->bulk_size; ++j ) {
-      if ( bench_->dataset_.size() == idx + bench_->bulk_size ) {
+      if ( bench_->dataset_.size() <= idx + bench_->bulk_size ) {
         idx = 0;
         looped = true;
       }
@@ -187,7 +187,7 @@ void ClassifierQueryRunner::execute_classify() {
 
     std::vector<dataset_type::datum_type> classify_data;
     for(size_t j = 0; j < bench_->bulk_size; ++j ) {
-      if ( bench_->dataset_.size() == idx + bench_->bulk_size ) {
+      if ( bench_->dataset_.size() <= idx + bench_->bulk_size ) {
         idx = 0;
         looped = true;
       }
