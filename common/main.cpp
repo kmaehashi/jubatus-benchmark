@@ -379,7 +379,8 @@ json Main::get_summary_as_json() {
 
   summary["program"] = new json_string(long_name());
   summary["version"] = new json_string(version_name());
-  summary["command_line"] = new json_string(cmdline_);
+  if ( dump_cmdline )
+    summary["command_line"] = new json_string(cmdline_);
   summary["dataset"] = new json_string(dataset_path);
   if ( dataset_limit == (size_t)-1 )
     summary["dataset_limit"] = new json_integer(-1);
