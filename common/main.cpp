@@ -445,8 +445,8 @@ json Main::get_timespan_statistics_as_json() {
     std::vector<double> latencies;
 
     for(size_t j = 0; j < results.size(); ++j) {
-      if ( results[j].query_time.start_clocktime() - basetime > time_unit) {
-        if ( !latencies.empty() ) {
+      if ( results[j].query_time.start_clocktime() - basetime >= time_unit) {
+        if ( basetime.sec != 0 ) {
           json stat(new json_object());
 
           SimpleStatistics<double> unit_stat =
@@ -463,6 +463,7 @@ json Main::get_timespan_statistics_as_json() {
 
           thread_result[pfi::lang::lexical_cast<std::string>(basetime.sec)] = stat;
         }
+
         basetime.sec = results[j].query_time.start_clocktime().sec;
         success_num = 0;
         wrong_num = 0;
@@ -490,7 +491,7 @@ json Main::get_timespan_statistics_as_json() {
       }
     }
 
-    // last unit
+    // last time unit
     json stat(new json_object());
 
     SimpleStatistics<double> unit_stat =
@@ -506,6 +507,7 @@ json Main::get_timespan_statistics_as_json() {
     stat["exception_num"] = new json_integer(exception_num);
 
     thread_result[pfi::lang::lexical_cast<std::string>(basetime.sec)] = stat;
+
     timespan_statistics[pfi::lang::lexical_cast<std::string>(runners[i]->id)] = thread_result;
   }
   return timespan_statistics;
