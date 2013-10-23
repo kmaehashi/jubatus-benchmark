@@ -53,7 +53,7 @@ public:
   }
 
   virtual std::string usage_query_mode() {
-    return "update/analyze";
+    return "\"update\" or \"train\", \"analyze\" or \"classify\"";
   }
 
   virtual void create_datasets() {
