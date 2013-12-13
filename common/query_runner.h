@@ -5,8 +5,8 @@
 
 #include <vector>
 
-#include <pficommon/concurrent/thread.h>
-#include <pficommon/text/json.h>
+#include <jubatus/util/concurrent/thread.h>
+#include <jubatus/util/text/json.h>
 
 #include "query_result.h"
 #include "time_span.h"
@@ -25,7 +25,7 @@ public:
 
   virtual const std::vector<QueryResult>& get_results();
   virtual size_t get_success_num();
-  virtual pfi::text::json::json get_result_as_json();
+  virtual jubatus::util::text::json::json get_result_as_json();
   
   virtual void execute_wrapper();
 
@@ -37,7 +37,7 @@ public:
   TimeSpan exec_time;
 
 protected:
-  pfi::concurrent::thread* thread_;
+  jubatus::util::concurrent::thread* thread_;
 };
 
 #define BEGIN_SAFE_RPC_CALL() try {

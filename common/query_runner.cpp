@@ -1,11 +1,12 @@
 // -*- mode: c++; coding: utf-8 -*-
 
-#include <pficommon/lang/bind.h>
-#include <pficommon/lang/function.h>
+#include <jubatus/util/lang/bind.h>
+#include <jubatus/util/lang/function.h>
+#include <jubatus/util/concurrent/thread.h>
 
 #include "query_runner.h"
 
-using namespace pfi::text::json;
+using namespace jubatus::util::text::json;
 
 namespace jubatus {
 namespace bench {
@@ -29,7 +30,7 @@ void call_execute_wrapper(QueryRunner *runner) {
 } // namespace <anonymous>
 
 void QueryRunner::start() {
-  thread_ = new pfi::concurrent::thread( pfi::lang::bind( call_execute_wrapper, this ) );
+  thread_ = new jubatus::util::concurrent::thread( jubatus::util::lang::bind( call_execute_wrapper, this ) );
   thread_->start();
 }
 

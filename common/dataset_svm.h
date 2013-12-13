@@ -5,7 +5,9 @@
 
 #include <fstream>
 #include <tr1/memory>
-#include <pficommon/lang/cast.h>
+#include <jubatus/util/lang/cast.h>
+
+#include <jubatus/client/classifier_types.hpp>
 
 #include "dataset.h"
 #include "exception.h"
@@ -17,7 +19,7 @@ template<typename DATUM>
 class DatasetSVM : public Dataset {
 public:
   typedef DATUM datum_type;
-  typedef std::pair<std::string, datum_type> label_datum_type;
+  typedef jubatus::classifier::labeled_datum label_datum_type;
   typedef std::tr1::shared_ptr<label_datum_type> label_datum_ptr;
 
 public:
@@ -75,14 +77,14 @@ private:
       }
 
       std::string id = s.substr(0, p);
-      float val = pfi::lang::lexical_cast<float>(s.substr(p + 1));
+      float val = jubatus::util::lang::lexical_cast<float>(s.substr(p + 1));
       num_values.push_back(make_pair(id, val));
     }
 
     label_datum_ptr result( new label_datum_type() );
-    result->first.swap(label);
-    result->second.string_values.clear();
-    result->second.num_values.swap(num_values);
+    result->label.swap(label);
+    result->data.string_values.clear();
+    result->data.num_values.swap(num_values);
 
     return result;
   }

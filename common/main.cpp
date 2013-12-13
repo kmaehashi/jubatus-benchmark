@@ -14,7 +14,7 @@
 #include "query_result.h"
 #include "statistics.h"
 
-using namespace pfi::text::json;
+using namespace jubatus::util::text::json;
 
 namespace jubatus {
 namespace bench {
@@ -429,7 +429,7 @@ json Main::get_result_as_json() {
 
 
 json Main::get_timespan_statistics_as_json() {
-  using pfi::system::time::clock_time;
+  using jubatus::util::system::time::clock_time;
 
   json timespan_statistics(new json_object());
 
@@ -461,7 +461,7 @@ json Main::get_timespan_statistics_as_json() {
           stat["error_num"] = new json_integer(error_num);
           stat["exception_num"] = new json_integer(exception_num);
 
-          thread_result[pfi::lang::lexical_cast<std::string>(basetime.sec)] = stat;
+          thread_result[jubatus::util::lang::lexical_cast<std::string>(basetime.sec)] = stat;
         }
 
         basetime.sec = results[j].query_time.start_clocktime().sec;
@@ -506,9 +506,9 @@ json Main::get_timespan_statistics_as_json() {
     stat["error_num"] = new json_integer(error_num);
     stat["exception_num"] = new json_integer(exception_num);
 
-    thread_result[pfi::lang::lexical_cast<std::string>(basetime.sec)] = stat;
+    thread_result[jubatus::util::lang::lexical_cast<std::string>(basetime.sec)] = stat;
 
-    timespan_statistics[pfi::lang::lexical_cast<std::string>(runners[i]->id)] = thread_result;
+    timespan_statistics[jubatus::util::lang::lexical_cast<std::string>(runners[i]->id)] = thread_result;
   }
   return timespan_statistics;
 }

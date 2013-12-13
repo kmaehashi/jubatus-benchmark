@@ -13,8 +13,8 @@ def configure(conf):
 
     conf.load('compiler_cxx')
 
+    conf.check_cfg(package = 'jubatus', args = '--cflags --libs')
     conf.check_cfg(package = 'jubatus-client', args = '--cflags --libs')
-    conf.check_cfg(package = 'pficommon', args = '--cflags --libs')
     conf.check_cxx(lib = 'rt', mandatory = True )
 
     conf.recurse(subdirs)

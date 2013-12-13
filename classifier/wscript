@@ -14,5 +14,5 @@ def build(bld):
                    '../common/query_runner.cpp',
                    '../common/time_span.cpp' ],
         target = name,
-        use = ['JUBATUS-CLIENT', 'PFICOMMON', 'RT'],
+        use = ['JUBATUS', 'JUBATUS-CLIENT', 'RT'],
     )

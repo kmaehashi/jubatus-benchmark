@@ -6,15 +6,15 @@
 #include <time.h>
 #include <string>
 #include <unistd.h>
-#include <pficommon/system/time_util.h>
+#include <jubatus/util/system/time_util.h>
 
 namespace jubatus {
 namespace bench {
 
 class TimeSpan {
 public:
-  typedef pfi::system::time::clock_time time_type;
-  typedef pfi::system::time::calendar_time datetime_type;
+  typedef jubatus::util::system::time::clock_time time_type;
+  typedef jubatus::util::system::time::calendar_time datetime_type;
   
   TimeSpan()
     : start_(0, 0), end_(0, 0) {

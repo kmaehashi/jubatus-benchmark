@@ -18,7 +18,7 @@ $ ./waf build
 
 * g++
 * pkg-config
-* pficommon
+* Jubatus (0.5.x)
 * jubatus-client
 
 ## 実行手順

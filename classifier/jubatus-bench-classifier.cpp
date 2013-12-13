@@ -1,5 +1,6 @@
 
 #include <iostream>
+#include <jubatus/util/system/time_util.h>
 
 #include <jubatus/client.hpp>
 
@@ -8,7 +9,7 @@
 #include "main.h"
 #include "query_runner.h"
 
-using pfi::system::time::get_clock_time;
+using jubatus::util::system::time::get_clock_time;
 
 namespace jubatus {
 namespace bench {
@@ -32,7 +33,7 @@ private:
 
 class ClassifierBench: public Main {
 public:
-  typedef jubatus::classifier::datum datum_type;
+  typedef jubatus::client::common::datum datum_type;
   typedef std::vector<std::pair<std::string, double> > num_values_type;
 
 public:
@@ -104,7 +105,7 @@ void ClassifierQueryRunner::execute_train() {
   typedef ClassifierBench::datum_type datum_type;
   typedef DatasetSVM<ClassifierBench::datum_type> dataset_type;
 
-  jubatus::classifier::client::classifier client( bench_->host, bench_->port, bench_->timeout_sec );
+  jubatus::classifier::client::classifier client( bench_->host, bench_->port, bench_->cluster_name, bench_->timeout_sec );
 
   size_t i = 0;
   size_t idx = 0;
@@ -139,7 +140,7 @@ void ClassifierQueryRunner::execute_train() {
     TimeSpan t;
     t.start();
     BEGIN_SAFE_RPC_CALL() {
-      client.train( bench_->cluster_name, train_data);
+      client.train(train_data);
     }
     END_SAFE_RPC_CALL( client, bench_->verbose, err_code );
     t.stop();
@@ -165,7 +166,7 @@ void ClassifierQueryRunner::execute_classify() {
   typedef ClassifierBench::datum_type datum_type;
   typedef DatasetSVM<ClassifierBench::datum_type> dataset_type;
 
-  jubatus::classifier::client::classifier client( bench_->host, bench_->port, bench_->timeout_sec );
+  jubatus::classifier::client::classifier client( bench_->host, bench_->port, bench_->cluster_name, bench_->timeout_sec );
 
   size_t i = 0;
   size_t idx = 0;
@@ -192,7 +193,7 @@ void ClassifierQueryRunner::execute_classify() {
         looped = true;
       }
       const dataset_type::label_datum_type &ld = bench_->dataset_.get(idx);
-      classify_data.push_back(ld.second);
+      classify_data.push_back(ld.data);
       ++idx;
     }
 
@@ -201,7 +202,7 @@ void ClassifierQueryRunner::execute_classify() {
     t.start();
     BEGIN_SAFE_RPC_CALL() {
       std::vector<std::vector<estimate_result> > result
-          = client.classify( bench_->cluster_name, classify_data);
+          = client.classify(classify_data);
       for (size_t i = 0; i < result.size(); ++i) {
         if ( result[i].empty() ) err_code = QueryResult::ERR_WRONG_RESULT;
       }
