@@ -365,7 +365,7 @@ json Main::get_summary_statistics_as_json(json result_json) {
 
   double queries_per_sec = 0;
   double elapsed_time = exec_time.elapsed_time_msec();
-  if ( elapsed_time > 1.0d ) queries_per_sec = latencies.size()/(elapsed_time/1000.0d);
+  if ( elapsed_time > 1.0 ) queries_per_sec = latencies.size()/(elapsed_time/1000.0);
   result_json["throughput_QPS"] = new json_float(queries_per_sec);
   
   return result_json;
